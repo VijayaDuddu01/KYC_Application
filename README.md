@@ -35,12 +35,22 @@ Manual identity verification is slow, error-prone, and doesn't scale. This proje
 
 ## ✨ Features
 
-### 🤖 Multi-Agent AI Pipeline
-- **INGESTION_AGENT** — Receives and validates document format
+### 🤖 Agentic AI Workflow (ReAct Pattern)
+The system uses a true **agentic architecture** — not a fixed pipeline. An **Orchestrator Agent** reasons about intermediate state and dynamically chooses the next action:
+
+- **ORCHESTRATOR** — Meta-agent that plans, reasons, and delegates
 - **OCR_AGENT** — Extracts structured data via GPT-5.2 Vision
 - **VALIDATION_AGENT** — Runs tamper detection & consistency checks
 - **HITL_AGENT** — Routes flagged docs to human reviewers
 - **DECISION_AGENT** — Finalizes approve/reject decisions
+
+**Dynamic decision paths** the Orchestrator chooses between:
+- **Fast-Track (A)**: OCR confidence > 0.95 & no tamper → skip validation, auto-approve (saves latency & cost)
+- **Direct-to-Human (B)**: OCR detects tamper → skip validation, straight to HITL
+- **Retry (C)**: OCR confidence < 0.60 → retry extraction with enhanced prompt before escalating
+- **Standard (D)**: Uncertain confidence → delegate to VALIDATION_AGENT for second opinion
+
+Every decision is logged with **natural-language reasoning** — full observability into the agent's thought process, visible in the UI as an "Agent Reasoning Trace".
 
 ### 📊 Live Control Room Dashboard
 - Real-time stat counters (Total Scans, Pending Review, Tamper Alerts, Approval Rate)
@@ -254,18 +264,69 @@ Coverage includes:
 
 ---
 
-## 🎬 How the AI Pipeline Works
+## 🎬 How the Agentic Workflow Works
 
-1. **Upload** — User uploads an Aadhaar/PAN/Passport image
-2. **OCR Extraction** — GPT-5.2 Vision parses the image and returns structured JSON with confidence scores
-3. **AI Validation** — A second GPT-5.2 call analyzes the extracted data for:
-   - Date consistency (DOB vs. issue date vs. expiry)
-   - Format validity (Aadhaar: 12 digits, PAN: AAAPZ1234Z pattern, etc.)
-   - Completeness of required fields
-   - Tamper signals (metadata inconsistencies, pixel patterns)
-4. **Routing Decision** — If tamper detected OR confidence < 70%, route to human review queue
-5. **Human Review** — Reviewer approves or rejects with optional notes
-6. **Audit Log** — Every action (upload, validation, decision) is immutably logged
+This is **not a fixed pipeline** — it's an agentic system where an Orchestrator agent reasons about each intermediate result and dynamically chooses the next action.
+
+### The Orchestrator's Decision Logic
+
+```
+User uploads document
+         ↓
+   [ORCHESTRATOR]
+   "Plan: call OCR, then decide"
+         ↓
+   [OCR_AGENT extracts]
+         ↓
+   [ORCHESTRATOR decides]  ← KEY AGENTIC DECISION POINT
+         │
+   ┌─────┼──────┬────────────┬─────────────┐
+   ▼     ▼      ▼            ▼             ▼
+FAST    HUMAN  RETRY OCR   STANDARD     (auto-recover
+TRACK   (tamper (low conf) (uncertain    if error)
+(>0.95) in OCR) <0.60)     0.60-0.95)
+         ↓                      ↓
+     Human Review          [VALIDATION_AGENT]
+                                ↓
+                          [ORCHESTRATOR decides again]
+                                ↓
+                      Approve / Human Review
+```
+
+### Why This is "Agentic" (Not Just a Pipeline)
+
+1. **Plans before acting** — Orchestrator creates an initial plan, logs it, then executes
+2. **Reasons about intermediate state** — Each decision references OCR confidence, tamper signals, validation outcome
+3. **Chooses dynamically** — 4 different execution paths based on what it finds
+4. **Self-corrects** — Retries OCR with enhanced prompt if confidence is low
+5. **Cost-aware** — Fast-tracks high-confidence docs to save LLM calls
+6. **Fully observable** — Every decision logged with natural-language reasoning
+
+### Example Reasoning Trace
+
+When you upload a document, the UI shows exactly what the agent thought:
+
+```
+[ORCHESTRATOR] plan_created
+→ "Received Aadhaar document. Initial plan: call OCR_AGENT first,
+   then decide next step based on extraction confidence."
+
+[OCR_AGENT] extraction_complete
+→ "Extracted 7 fields. Overall confidence: 0.85. Tamper signals: False."
+
+[ORCHESTRATOR] delegating_to_validation_agent
+→ "OCR confidence is 0.85 (in uncertain range). Delegating to
+   VALIDATION_AGENT for tamper detection and cross-field consistency checks."
+
+[VALIDATION_AGENT] validation_complete
+→ "Validation complete. is_valid=True, tamper=False. Recommendation: auto-decide."
+
+[ORCHESTRATOR] auto_approving
+→ "All checks passed. No tamper. Confidence meets threshold.
+   Agent auto-approves without human intervention."
+```
+
+This is the **ReAct pattern** applied to document verification — reasoning + action traces that give full transparency into AI decision-making.
 
 ---
 

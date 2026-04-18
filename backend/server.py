@@ -199,36 +199,229 @@ async def upload_document(data: VerificationUpload, user: dict = Depends(verify_
     audit_dict['timestamp'] = audit_dict['timestamp'].isoformat()
     await db.audit_logs.insert_one(audit_dict)
     
-    asyncio.create_task(process_ocr_extraction(request.id, data.image_base64, data.document_type))
+    asyncio.create_task(orchestrator_agent(request.id, data.image_base64, data.document_type))
     
     return {"request_id": request.id, "status": "processing"}
 
-async def process_ocr_extraction(request_id: str, image_base64: str, document_type: str):
+
+async def log_agent_decision(request_id: str, agent: str, action: str, reasoning: str, metadata: Dict[str, Any] = None):
+    """Log an agent's reasoning trace for transparency"""
+    decision = {
+        "id": str(uuid.uuid4()),
+        "request_id": request_id,
+        "agent": agent,
+        "action": action,
+        "reasoning": reasoning,
+        "metadata": metadata or {},
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    await db.agent_decisions.insert_one(decision)
+
+
+async def orchestrator_agent(request_id: str, image_base64: str, document_type: str):
+    """
+    Agentic orchestrator that PLANS and DECIDES the workflow dynamically.
+    Unlike a fixed pipeline, this agent reasons about intermediate results
+    and chooses the next action based on confidence, tamper signals, and data quality.
+    """
+    try:
+        await log_agent_decision(
+            request_id=request_id,
+            agent="ORCHESTRATOR",
+            action="plan_created",
+            reasoning=f"Received {document_type} document. Initial plan: call OCR_AGENT first, then decide next step based on extraction confidence.",
+            metadata={"initial_plan": ["ocr_extract", "assess_quality", "decide_next_step"]}
+        )
+        
+        # STEP 1: Call OCR Agent
+        await log_agent_decision(
+            request_id=request_id,
+            agent="ORCHESTRATOR",
+            action="delegating_to_ocr_agent",
+            reasoning="Invoking OCR_AGENT with GPT-5.2 Vision to extract structured fields from document image."
+        )
+        
+        ocr_result = await call_ocr_agent(request_id, image_base64, document_type)
+        
+        if not ocr_result["success"]:
+            await log_agent_decision(
+                request_id=request_id,
+                agent="ORCHESTRATOR",
+                action="ocr_failed_routing_to_human",
+                reasoning="OCR_AGENT failed to extract data. Escalating directly to human review without validation step.",
+                metadata={"error": ocr_result.get("error", "unknown")}
+            )
+            await db.verification_requests.update_one(
+                {"id": request_id},
+                {"$set": {"status": "needs_review", "updated_at": datetime.now(timezone.utc).isoformat()}}
+            )
+            return
+        
+        structured_data = ocr_result["structured_data"]
+        overall_confidence = ocr_result["overall_confidence"]
+        tamper_signals_in_ocr = ocr_result.get("tamper_signals_in_ocr", False)
+        
+        # STEP 2: AGENTIC DECISION POINT - decide what to do next based on OCR quality
+        await db.verification_requests.update_one(
+            {"id": request_id},
+            {"$set": {"status": "extracted", "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        
+        # DECISION LOGIC (the "planning" part of agentic behavior)
+        if tamper_signals_in_ocr:
+            # Path A: OCR already detected tamper → skip validation, go straight to human
+            await log_agent_decision(
+                request_id=request_id,
+                agent="ORCHESTRATOR",
+                action="routing_to_human_review",
+                reasoning=f"OCR_AGENT detected tamper signals during extraction (confidence={overall_confidence:.2f}). Skipping VALIDATION_AGENT — no point re-validating an already-flagged document. Routing directly to HITL_AGENT for human reviewer.",
+                metadata={"path_taken": "A_tamper_in_ocr", "skipped_agents": ["VALIDATION_AGENT"]}
+            )
+            await create_validation_result(
+                request_id=request_id,
+                is_valid=False,
+                tamper_detected=True,
+                checks={"ocr_tamper_signal": "fail"},
+                reasoning="OCR agent detected tamper signals during extraction — escalated without re-validation."
+            )
+            await db.verification_requests.update_one(
+                {"id": request_id},
+                {"$set": {"status": "needs_review", "updated_at": datetime.now(timezone.utc).isoformat()}}
+            )
+            return
+        
+        if overall_confidence >= 0.95:
+            # Path B: Very high confidence → agent chooses to FAST-TRACK, skip validation
+            await log_agent_decision(
+                request_id=request_id,
+                agent="ORCHESTRATOR",
+                action="fast_tracking_approval",
+                reasoning=f"OCR confidence is very high ({overall_confidence:.2f} >= 0.95). No tamper signals. Agent chooses to FAST-TRACK: skip VALIDATION_AGENT and auto-approve to save latency and LLM cost.",
+                metadata={"path_taken": "B_fast_track", "skipped_agents": ["VALIDATION_AGENT", "HITL_AGENT"]}
+            )
+            await create_validation_result(
+                request_id=request_id,
+                is_valid=True,
+                tamper_detected=False,
+                checks={"fast_track": "pass", "confidence_threshold": "pass"},
+                reasoning=f"Fast-tracked by orchestrator: OCR confidence {overall_confidence:.2f} exceeded auto-approve threshold (0.95)."
+            )
+            await db.verification_requests.update_one(
+                {"id": request_id},
+                {"$set": {"status": "approved", "updated_at": datetime.now(timezone.utc).isoformat()}}
+            )
+            return
+        
+        if overall_confidence < 0.60:
+            # Path C: Low confidence → agent retries OCR with enhanced prompt before giving up
+            await log_agent_decision(
+                request_id=request_id,
+                agent="ORCHESTRATOR",
+                action="retrying_ocr_with_enhanced_prompt",
+                reasoning=f"OCR confidence is low ({overall_confidence:.2f} < 0.60). Before escalating, agent will RETRY OCR_AGENT with an enhanced prompt requesting field-by-field extraction. This is an autonomous recovery attempt.",
+                metadata={"path_taken": "C_retry_ocr"}
+            )
+            retry_result = await call_ocr_agent(request_id, image_base64, document_type, retry=True)
+            if retry_result["success"] and retry_result["overall_confidence"] > overall_confidence:
+                structured_data = retry_result["structured_data"]
+                overall_confidence = retry_result["overall_confidence"]
+                await log_agent_decision(
+                    request_id=request_id,
+                    agent="ORCHESTRATOR",
+                    action="retry_improved_confidence",
+                    reasoning=f"Retry improved confidence to {overall_confidence:.2f}. Continuing to VALIDATION_AGENT.",
+                    metadata={"confidence_delta": overall_confidence - ocr_result["overall_confidence"]}
+                )
+            else:
+                await log_agent_decision(
+                    request_id=request_id,
+                    agent="ORCHESTRATOR",
+                    action="retry_did_not_improve",
+                    reasoning="OCR retry did not meaningfully improve confidence. Routing to VALIDATION_AGENT anyway for second opinion before human review."
+                )
+        
+        # Path D: Standard path — call VALIDATION_AGENT with the OCR results
+        await log_agent_decision(
+            request_id=request_id,
+            agent="ORCHESTRATOR",
+            action="delegating_to_validation_agent",
+            reasoning=f"OCR confidence is {overall_confidence:.2f} (in uncertain range). Delegating to VALIDATION_AGENT for tamper detection and cross-field consistency checks.",
+            metadata={"path_taken": "D_standard"}
+        )
+        
+        validation_outcome = await call_validation_agent(request_id, structured_data, document_type)
+        
+        # STEP 3: AGENTIC DECISION POINT 2 - route based on validation outcome
+        if validation_outcome["tamper_detected"]:
+            await log_agent_decision(
+                request_id=request_id,
+                agent="ORCHESTRATOR",
+                action="routing_to_human_review",
+                reasoning="VALIDATION_AGENT detected tamper. Escalating to HITL_AGENT — human reviewer must make the final call on tampered documents.",
+                metadata={"tamper_confidence": validation_outcome.get("tamper_confidence", 0)}
+            )
+            await db.verification_requests.update_one(
+                {"id": request_id},
+                {"$set": {"status": "needs_review", "updated_at": datetime.now(timezone.utc).isoformat()}}
+            )
+        elif validation_outcome["requires_human_review"] or overall_confidence < 0.75:
+            await log_agent_decision(
+                request_id=request_id,
+                agent="ORCHESTRATOR",
+                action="routing_to_human_review",
+                reasoning=f"No tamper but overall confidence insufficient for auto-approval (OCR={overall_confidence:.2f}, validation_flag={validation_outcome['requires_human_review']}). Routing to HITL_AGENT."
+            )
+            await db.verification_requests.update_one(
+                {"id": request_id},
+                {"$set": {"status": "needs_review", "updated_at": datetime.now(timezone.utc).isoformat()}}
+            )
+        else:
+            await log_agent_decision(
+                request_id=request_id,
+                agent="ORCHESTRATOR",
+                action="auto_approving",
+                reasoning="All checks passed. No tamper. Confidence meets threshold. Agent auto-approves without human intervention."
+            )
+            await db.verification_requests.update_one(
+                {"id": request_id},
+                {"$set": {"status": "approved", "updated_at": datetime.now(timezone.utc).isoformat()}}
+            )
+    
+    except Exception as e:
+        logging.error(f"Orchestrator failed: {str(e)}")
+        await log_agent_decision(
+            request_id=request_id,
+            agent="ORCHESTRATOR",
+            action="error_escalating_to_human",
+            reasoning=f"Unexpected error in orchestration: {str(e)}. Safely routing to human review.",
+            metadata={"error": str(e)}
+        )
+        await db.verification_requests.update_one(
+            {"id": request_id},
+            {"$set": {"status": "needs_review", "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+
+
+async def call_ocr_agent(request_id: str, image_base64: str, document_type: str, retry: bool = False):
+    """OCR sub-agent — returns structured data with confidence."""
     try:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
-            session_id=f"ocr_{request_id}",
+            session_id=f"ocr_{request_id}_{'retry' if retry else 'initial'}",
             system_message="You are an expert OCR system for identity documents. Extract all text and data accurately."
         ).with_model("openai", "gpt-5.2")
         
-        prompt = f"""Extract all information from this {document_type} document. 
-        Provide structured data in JSON format with these fields:
-        - document_type
-        - document_number
-        - name
-        - date_of_birth
-        - address (if present)
-        - issue_date (if present)
-        - expiry_date (if present)
-        - confidence_score (0-1 for each field)
+        base_prompt = f"""Extract all information from this {document_type} document.
+Provide structured data in JSON format with these fields:
+- document_type, document_number, name, date_of_birth, address, issue_date, expiry_date
+- confidence_score (a single overall 0-1 number)
+- tamper_signals_detected (true/false - any visual signs of manipulation)"""
         
-        Also assess if there are any signs of tampering or manipulation."""
+        retry_prompt = base_prompt + "\n\nIMPORTANT: Previous extraction had low confidence. Look carefully field-by-field. If a field is unclear, mark it as null rather than guessing."
         
+        prompt = retry_prompt if retry else base_prompt
         image_content = ImageContent(image_base64=image_base64)
-        user_message = UserMessage(
-            text=prompt,
-            file_contents=[image_content]
-        )
+        user_message = UserMessage(text=prompt, file_contents=[image_content])
         
         response = await chat.send_message(user_message)
         
@@ -236,44 +429,60 @@ async def process_ocr_extraction(request_id: str, image_base64: str, document_ty
         try:
             start_idx = response.find('{')
             end_idx = response.rfind('}') + 1
-            if start_idx != -1 and end_idx > start_idx:
-                json_str = response[start_idx:end_idx]
-                structured_data = json.loads(json_str)
-            else:
-                structured_data = {"raw_extraction": response}
+            structured_data = json.loads(response[start_idx:end_idx]) if start_idx != -1 else {"raw_extraction": response}
         except:
             structured_data = {"raw_extraction": response}
         
-        confidence_scores = structured_data.get('confidence_score', {})
-        if not isinstance(confidence_scores, dict):
-            confidence_scores = {"overall": 0.85}
+        confidence = structured_data.get('confidence_score', 0.85)
+        if isinstance(confidence, dict):
+            vals = [v for v in confidence.values() if isinstance(v, (int, float))]
+            confidence = sum(vals) / len(vals) if vals else 0.85
+        
+        tamper_signals = structured_data.get('tamper_signals_detected', False)
         
         extracted = ExtractedData(
             request_id=request_id,
             raw_text=response,
             structured_data=structured_data,
-            confidence_scores=confidence_scores
+            confidence_scores={"overall": float(confidence)}
+        )
+        ext_dict = extracted.model_dump()
+        ext_dict['extraction_timestamp'] = ext_dict['extraction_timestamp'].isoformat()
+        
+        # Upsert so retry overwrites
+        await db.extracted_data.update_one(
+            {"request_id": request_id},
+            {"$set": ext_dict},
+            upsert=True
         )
         
-        extracted_dict = extracted.model_dump()
-        extracted_dict['extraction_timestamp'] = extracted_dict['extraction_timestamp'].isoformat()
-        await db.extracted_data.insert_one(extracted_dict)
-        
-        await db.verification_requests.update_one(
-            {"id": request_id},
-            {"$set": {"status": "extracted", "updated_at": datetime.now(timezone.utc).isoformat()}}
+        await log_agent_decision(
+            request_id=request_id,
+            agent="OCR_AGENT",
+            action="extraction_complete" if not retry else "retry_extraction_complete",
+            reasoning=f"Extracted {sum(1 for v in structured_data.values() if v)} fields. Overall confidence: {confidence:.2f}. Tamper signals: {tamper_signals}.",
+            metadata={"confidence": float(confidence), "retry": retry}
         )
         
-        asyncio.create_task(process_ai_validation(request_id, structured_data, document_type))
-        
+        return {
+            "success": True,
+            "structured_data": structured_data,
+            "overall_confidence": float(confidence),
+            "tamper_signals_in_ocr": bool(tamper_signals)
+        }
     except Exception as e:
-        logging.error(f"OCR extraction failed: {str(e)}")
-        await db.verification_requests.update_one(
-            {"id": request_id},
-            {"$set": {"status": "error", "updated_at": datetime.now(timezone.utc).isoformat()}}
+        logging.error(f"OCR agent failed: {str(e)}")
+        await log_agent_decision(
+            request_id=request_id,
+            agent="OCR_AGENT",
+            action="extraction_failed",
+            reasoning=f"Extraction threw exception: {str(e)}"
         )
+        return {"success": False, "error": str(e)}
 
-async def process_ai_validation(request_id: str, extracted_data: Dict[str, Any], document_type: str):
+
+async def call_validation_agent(request_id: str, extracted_data: Dict[str, Any], document_type: str):
+    """Validation sub-agent — runs tamper detection and consistency checks."""
     try:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
@@ -282,71 +491,86 @@ async def process_ai_validation(request_id: str, extracted_data: Dict[str, Any],
         ).with_model("openai", "gpt-5.2")
         
         prompt = f"""Analyze this extracted {document_type} data for validation:
-        {extracted_data}
+{extracted_data}
+
+Check for:
+1. Data consistency (dates, format, patterns)
+2. Potential tampering signs
+3. Completeness of required fields
+4. Format validation
+
+Respond in JSON:
+{{
+    "is_valid": true/false,
+    "tamper_detected": true/false,
+    "tamper_confidence": 0-1,
+    "validation_checks": {{"date_consistency": "pass/fail", "format_valid": "pass/fail", "completeness": "pass/fail"}},
+    "reasoning": "explanation",
+    "requires_human_review": true/false
+}}"""
         
-        Check for:
-        1. Data consistency (dates, format, patterns)
-        2. Potential tampering signs
-        3. Completeness of required fields
-        4. Format validation
-        
-        Respond in JSON format:
-        {{
-            "is_valid": true/false,
-            "tamper_detected": true/false,
-            "tamper_confidence": 0-1,
-            "validation_checks": {{
-                "date_consistency": "pass/fail",
-                "format_valid": "pass/fail",
-                "completeness": "pass/fail"
-            }},
-            "reasoning": "explanation",
-            "requires_human_review": true/false
-        }}"""
-        
-        user_message = UserMessage(text=prompt)
-        response = await chat.send_message(user_message)
+        response = await chat.send_message(UserMessage(text=prompt))
         
         import json
         try:
             start_idx = response.find('{')
             end_idx = response.rfind('}') + 1
-            if start_idx != -1 and end_idx > start_idx:
-                json_str = response[start_idx:end_idx]
-                validation_data = json.loads(json_str)
-            else:
-                validation_data = {"is_valid": False, "tamper_detected": False, "reasoning": response}
+            validation_data = json.loads(response[start_idx:end_idx]) if start_idx != -1 else {}
         except:
-            validation_data = {"is_valid": False, "tamper_detected": False, "reasoning": response}
+            validation_data = {}
         
-        validation = ValidationResult(
+        await create_validation_result(
             request_id=request_id,
             is_valid=validation_data.get('is_valid', False),
             tamper_detected=validation_data.get('tamper_detected', False),
-            validation_checks=validation_data.get('validation_checks', {}),
-            ai_reasoning=validation_data.get('reasoning', '')
+            checks=validation_data.get('validation_checks', {}),
+            reasoning=validation_data.get('reasoning', response)
         )
         
-        validation_dict = validation.model_dump()
-        validation_dict['validation_timestamp'] = validation_dict['validation_timestamp'].isoformat()
-        await db.validation_results.insert_one(validation_dict)
-        
-        if validation.tamper_detected or validation_data.get('requires_human_review', False):
-            new_status = "needs_review"
-        else:
-            new_status = "validated"
-        
-        await db.verification_requests.update_one(
-            {"id": request_id},
-            {"$set": {"status": new_status, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        await log_agent_decision(
+            request_id=request_id,
+            agent="VALIDATION_AGENT",
+            action="validation_complete",
+            reasoning=f"Validation complete. is_valid={validation_data.get('is_valid')}, tamper={validation_data.get('tamper_detected')}. Recommendation: {'human review' if validation_data.get('requires_human_review') else 'auto-decide'}.",
+            metadata={
+                "tamper_confidence": validation_data.get('tamper_confidence', 0),
+                "checks": validation_data.get('validation_checks', {})
+            }
         )
         
+        return {
+            "tamper_detected": validation_data.get('tamper_detected', False),
+            "requires_human_review": validation_data.get('requires_human_review', False),
+            "tamper_confidence": validation_data.get('tamper_confidence', 0),
+            "is_valid": validation_data.get('is_valid', False)
+        }
     except Exception as e:
-        logging.error(f"AI validation failed: {str(e)}")
-        await db.verification_requests.update_one(
-            {"id": request_id},
-            {"$set": {"status": "needs_review", "updated_at": datetime.now(timezone.utc).isoformat()}}
+        logging.error(f"Validation agent failed: {str(e)}")
+        await log_agent_decision(
+            request_id=request_id,
+            agent="VALIDATION_AGENT",
+            action="validation_failed",
+            reasoning=f"Exception during validation: {str(e)}. Defaulting to human review."
         )
+        return {"tamper_detected": False, "requires_human_review": True, "tamper_confidence": 0, "is_valid": False}
+
+
+async def create_validation_result(request_id: str, is_valid: bool, tamper_detected: bool, checks: Dict, reasoning: str):
+    """Helper to persist validation results."""
+    validation = ValidationResult(
+        request_id=request_id,
+        is_valid=is_valid,
+        tamper_detected=tamper_detected,
+        validation_checks=checks,
+        ai_reasoning=reasoning
+    )
+    val_dict = validation.model_dump()
+    val_dict['validation_timestamp'] = val_dict['validation_timestamp'].isoformat()
+    await db.validation_results.update_one(
+        {"request_id": request_id},
+        {"$set": val_dict},
+        upsert=True
+    )
 
 @api_router.get("/verify/requests")
 async def get_verification_requests(user: dict = Depends(verify_token)):
@@ -368,6 +592,7 @@ async def get_verification_request(request_id: str, user: dict = Depends(verify_
     
     extracted = await db.extracted_data.find_one({"request_id": request_id}, {"_id": 0})
     validation = await db.validation_results.find_one({"request_id": request_id}, {"_id": 0})
+    agent_decisions = await db.agent_decisions.find({"request_id": request_id}, {"_id": 0}).sort("timestamp", 1).to_list(100)
     
     if isinstance(request.get('created_at'), str):
         request['created_at'] = datetime.fromisoformat(request['created_at'])
@@ -377,7 +602,8 @@ async def get_verification_request(request_id: str, user: dict = Depends(verify_
     return {
         "request": request,
         "extracted_data": extracted,
-        "validation": validation
+        "validation": validation,
+        "agent_decisions": agent_decisions
     }
 
 @api_router.post("/verify/requests/{request_id}/review")

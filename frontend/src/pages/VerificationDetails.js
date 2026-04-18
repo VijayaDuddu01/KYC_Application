@@ -15,6 +15,7 @@ import {
 } from '@phosphor-icons/react';
 import AIPipeline from '../components/AIPipeline';
 import AIAgentConsole from '../components/AIAgentConsole';
+import AgentReasoningTrace from '../components/AgentReasoningTrace';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -105,7 +106,7 @@ const VerificationDetails = () => {
     );
   }
 
-  const { request, extracted_data, validation } = data;
+  const { request, extracted_data, validation, agent_decisions } = data;
   const imageUrl = `data:image/jpeg;base64,${request.image_base64}`;
   const isProcessing = ['pending', 'processing', 'extracted'].includes(request.status);
   const isTampered = validation?.tamper_detected;
@@ -144,6 +145,11 @@ const VerificationDetails = () => {
       {/* AI PIPELINE - DRAMATIC DARK */}
       <div className="mb-6 fade-in-up delay-100">
         <AIPipeline currentStatus={request.status} />
+      </div>
+
+      {/* AGENT REASONING TRACE - Shows agentic decision-making */}
+      <div className="mb-6 fade-in-up delay-150">
+        <AgentReasoningTrace decisions={agent_decisions} />
       </div>
 
       {/* TAMPER ALERT BANNER */}
