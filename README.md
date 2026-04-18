@@ -11,9 +11,11 @@
 [![TailwindCSS](https://img.shields.io/badge/Tailwind-3.4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)]()
 
-**A production-grade KYC platform that extracts, validates, and verifies Aadhaar, PAN, and Passport documents using a multi-agent AI pipeline.**
+**A production-grade KYC platform that extracts, validates, and verifies Aadhaar, PAN, and Passport documents using an agentic multi-agent AI system with ReAct-style reasoning.**
 
-[Live Demo](#-quick-start) · [Features](#-features) · [Architecture](#-architecture) · [Screenshots](#-screenshots)
+🌐 **[Live Demo](https://ai-identity-verify-2.preview.emergentagent.com)** · [Features](#-features) · [Agentic Workflow](#-how-the-agentic-workflow-works) · [Architecture](#%EF%B8%8F-architecture)
+
+> **🎬 Try it in 10 seconds**: Open the [live demo](https://ai-identity-verify-2.preview.emergentagent.com) → Click **"ONE-CLICK DEMO LOGIN"** → Click **"LOAD DEMO DATA"** → Click any verification row to see the **Agent Reasoning Trace** in action.
 
 </div>
 
@@ -30,6 +32,23 @@ Manual identity verification is slow, error-prone, and doesn't scale. This proje
 - Logs every action to an immutable audit trail
 
 **Result**: Verification happens in under 4 seconds with transparent decision-making.
+
+---
+
+## 👋 For Interviewers / Recruiters
+
+**No setup needed.** Just click:
+
+1. 🌐 **[Open Live Demo](https://ai-identity-verify-2.preview.emergentagent.com)** — fully functional preview
+2. 🔑 Click **"ONE-CLICK DEMO LOGIN"** button on the login page
+3. 📊 Click **"LOAD DEMO DATA"** to populate charts & verifications
+4. 🔍 Click any verification row to see the **Agent Reasoning Trace** — full transparency into the AI's decision-making (this is the ReAct pattern applied to KYC)
+
+**What to look for:**
+- **Agent Reasoning Trace**: Shows the orchestrator planning → delegating → deciding → auto-approving with natural-language reasoning for each step
+- **4 dynamic execution paths** the orchestrator chooses between (fast-track, retry, validate, escalate)
+- **Live AI Agent Console**: Terminal-style streaming logs of agent activity
+- **Confidence gradient bars**: Visual representation of OCR confidence per field
 
 ---
 
@@ -142,14 +161,45 @@ Every decision is logged with **natural-language reasoning** — full observabil
 
 ---
 
-## 📸 Screenshots
+## 📸 Visual Tour
 
-> Run the project locally to see:
-> - **Login Hero** — Dramatic dark split-screen with "Identity, verified in 3.2 seconds"
-> - **Control Room Dashboard** — Dark hero panel with live clock & animated counters
-> - **AI Orchestration Engine** — 5-stage pipeline with green neon glow
-> - **AI Agent Console** — Streaming terminal logs of agent activity
-> - **Verification Details** — Split view with confidence bars and validation results
+### 🖼️ Key Screens
+
+| Screen | What You'll See |
+|--------|-----------------|
+| **Login Hero** | Dramatic dark split-screen with "Identity, verified in 3.2 seconds", live terminal preview, neural network nodes, animated grid |
+| **Control Room Dashboard** | Dark hero panel with live clock, 4 animated stat counters (count up from 0), 3 interactive charts (Pie/Bar/Line) |
+| **AI Orchestration Engine** | Dark 5-stage pipeline with green neon glow for active stages, agent names (ORCHESTRATOR, OCR_AGENT, etc.), flowing animation between stages |
+| **Agent Reasoning Trace** | Vertical timeline showing every autonomous decision the orchestrator made, with natural-language reasoning for each step — badged "ReAct Pattern" |
+| **AI Agent Console** | Live streaming terminal logs with colored agent levels (info/success/warn/error), blinking cursor, STREAMING indicator |
+| **Verification Details** | Split-screen with document image (pan/zoom + scan laser animation) + extracted data with confidence gradient bars (red→yellow→green) |
+| **Review Queue** | Human-in-the-loop approval interface with approve/reject actions and review notes |
+| **Audit Logs** | Complete immutable trail of every action with timestamps and actor emails |
+
+### 🎥 Quick Demo Flow
+
+1. Open [live demo](https://ai-identity-verify-2.preview.emergentagent.com)
+2. Click **"ONE-CLICK DEMO LOGIN"** (no signup needed)
+3. Click **"LOAD DEMO DATA"** on dashboard — see all charts populate
+4. Click any verification row → see the **full Agent Reasoning Trace** (6+ autonomous decisions logged)
+5. Try uploading your own ID — watch the agent plan, extract, validate, and auto-approve in real-time
+
+---
+
+## 🧪 Sample Test Documents
+
+For quick testing without real ID documents:
+
+### Option 1: Use Any Test Image
+- Upload any JPEG/PNG image (the system handles gracefully — if OCR fails, the Orchestrator routes to human review, demonstrating the fallback path)
+
+### Option 2: Generate Sample Aadhaar
+- Visit [sample aadhaar generators online](https://www.google.com/search?q=sample+aadhaar+card+image) for public test images (government specimen documents for training purposes)
+
+### Option 3: Pre-seeded Demo Data
+- Click **"LOAD DEMO DATA"** on the dashboard after logging in — this creates 8 sample verifications (mix of approved, rejected, tampered, and needs-review) with full agent reasoning traces
+
+> **Note**: Real identity documents should NEVER be committed to a public repo. The demo seeder generates realistic-looking synthetic data for showcase purposes.
 
 ---
 
