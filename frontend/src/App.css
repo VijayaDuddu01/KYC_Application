@@ -27,3 +27,324 @@ code, pre, .mono {
 button, a, input, textarea {
   transition: all 150ms ease-in-out;
 }
+
+/* ===== GRID BACKGROUND ANIMATION ===== */
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(0, 47, 167, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 47, 167, 0.08) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: gridMove 20s linear infinite;
+}
+
+.grid-bg-dark {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: gridMove 20s linear infinite;
+}
+
+@keyframes gridMove {
+  0% { background-position: 0 0; }
+  100% { background-position: 40px 40px; }
+}
+
+/* ===== PULSE ANIMATIONS ===== */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.2); }
+}
+
+.pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(230, 57, 70, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(230, 57, 70, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(230, 57, 70, 0); }
+}
+
+.pulse-ring {
+  animation: pulse-ring 2s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  0%, 100% { background-color: #00875A; }
+  50% { background-color: #00a870; }
+}
+
+.live-indicator {
+  animation: live-pulse 1.5s ease-in-out infinite;
+}
+
+/* ===== SCANNING LASER ANIMATION ===== */
+.scan-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #002FA7, #E63946, #002FA7, transparent);
+  box-shadow: 0 0 20px rgba(0, 47, 167, 0.8), 0 0 40px rgba(230, 57, 70, 0.4);
+  animation: scan 3s ease-in-out infinite;
+  z-index: 10;
+  pointer-events: none;
+}
+
+@keyframes scan {
+  0% { top: 0; opacity: 1; }
+  50% { top: 100%; opacity: 0.8; }
+  51% { opacity: 0; }
+  52% { top: 0; opacity: 0; }
+  53% { opacity: 1; }
+  100% { top: 100%; opacity: 1; }
+}
+
+/* ===== AI PIPELINE FLOW ANIMATION ===== */
+.pipeline-line {
+  position: relative;
+  overflow: hidden;
+}
+
+.pipeline-line::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, #002FA7, transparent);
+  animation: flow 2s ease-in-out infinite;
+}
+
+@keyframes flow {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* ===== COUNT UP ANIMATION ===== */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.count-up {
+  animation: countUp 0.6s ease-out;
+}
+
+/* ===== FADE IN ANIMATIONS ===== */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.fade-in-up { animation: fadeInUp 0.6s ease-out; }
+.fade-in-left { animation: fadeInLeft 0.6s ease-out; }
+.fade-in-right { animation: fadeInRight 0.6s ease-out; }
+
+/* Staggered delays */
+.delay-100 { animation-delay: 100ms; animation-fill-mode: both; }
+.delay-200 { animation-delay: 200ms; animation-fill-mode: both; }
+.delay-300 { animation-delay: 300ms; animation-fill-mode: both; }
+.delay-400 { animation-delay: 400ms; animation-fill-mode: both; }
+.delay-500 { animation-delay: 500ms; animation-fill-mode: both; }
+
+/* ===== TERMINAL / AI CONSOLE ===== */
+.terminal-cursor::after {
+  content: '▋';
+  animation: blink 1s step-end infinite;
+  color: #00875A;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.typewriter {
+  overflow: hidden;
+  border-right: 2px solid #00875A;
+  white-space: nowrap;
+  animation: typing 2s steps(40, end), blink-caret 0.75s step-end infinite;
+}
+
+@keyframes typing {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+@keyframes blink-caret {
+  from, to { border-color: transparent; }
+  50% { border-color: #00875A; }
+}
+
+/* ===== HOVER GLOW ===== */
+.glow-hover {
+  transition: all 300ms ease-in-out;
+}
+
+.glow-hover:hover {
+  box-shadow: 0 0 0 1px #000, 0 0 20px rgba(0, 47, 167, 0.3);
+  transform: translateY(-2px);
+}
+
+/* ===== CONFIDENCE BAR ===== */
+.confidence-bar {
+  position: relative;
+  height: 6px;
+  background-color: #E5E7EB;
+  overflow: hidden;
+}
+
+.confidence-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #E63946 0%, #FFC300 50%, #00875A 100%);
+  animation: fillBar 1s ease-out;
+}
+
+@keyframes fillBar {
+  from { width: 0; }
+}
+
+/* ===== GLITCH EFFECT for TAMPER ===== */
+@keyframes glitch {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-2px, 2px); }
+  20% { transform: translate(2px, -2px); }
+  30% { transform: translate(-2px, -2px); }
+  40% { transform: translate(2px, 2px); }
+  50% { transform: translate(0, 0); }
+}
+
+.tamper-glitch {
+  animation: glitch 0.3s ease-in-out 3;
+}
+
+/* ===== DOT MATRIX LOADER ===== */
+.dot-loader {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.dot-loader span {
+  width: 6px;
+  height: 6px;
+  background-color: #002FA7;
+  animation: dot-bounce 1.4s ease-in-out infinite;
+}
+
+.dot-loader span:nth-child(1) { animation-delay: 0s; }
+.dot-loader span:nth-child(2) { animation-delay: 0.2s; }
+.dot-loader span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dot-bounce {
+  0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-8px); }
+}
+
+/* ===== RIPPLE EFFECT ===== */
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(0, 47, 167, 0.2) 0%, transparent 70%);
+  animation: ripple-expand 3s ease-out infinite;
+}
+
+@keyframes ripple-expand {
+  0% { transform: scale(0.5); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+/* ===== NEURAL NETWORK NODES ===== */
+.neural-node {
+  animation: neural-pulse 3s ease-in-out infinite;
+}
+
+@keyframes neural-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* ===== GRADIENT TEXT ===== */
+.gradient-text {
+  background: linear-gradient(135deg, #002FA7 0%, #111827 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ===== STATS CARD HOVER ===== */
+.stat-card {
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background-color: #002FA7;
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform 300ms ease-out;
+}
+
+.stat-card:hover::before {
+  transform: scaleY(1);
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+/* Hide scrollbar but keep scroll */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ===== Shimmer / Loading ===== */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
