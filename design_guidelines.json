@@ -1,0 +1,111 @@
+{
+  "theme": "LIGHT",
+  "archetype": "4 (Swiss & High-Contrast)",
+  "rationale": "Identity verification and compliance requires absolute authority, clarity, and truth. The UI must strip away decorative elements, focusing purely on data, legibility, and functional color (e.g., Signal Red for tamper alerts, IKB Blue for system states). A high-contrast light theme mimics the stark reality of document review.",
+  "colors": {
+    "background": {
+      "primary": "#FFFFFF",
+      "secondary": "#F3F4F6",
+      "tertiary": "#E5E7EB"
+    },
+    "surface": {
+      "card": "#FFFFFF",
+      "sidebar": "#111827",
+      "glass": "transparent"
+    },
+    "text": {
+      "primary": "#111827",
+      "secondary": "#4B5563",
+      "muted": "#9CA3AF",
+      "inverse": "#FFFFFF"
+    },
+    "brand": {
+      "primary": "#002FA7",
+      "accent": "#000000"
+    },
+    "status": {
+      "tamper_error": "#E63946",
+      "verified_success": "#00875A",
+      "review_warning": "#FFC300",
+      "neutral_info": "#002FA7"
+    },
+    "border": "#E5E7EB"
+  },
+  "typography": {
+    "font_family": {
+      "heading": "Chivo",
+      "body": "IBM Plex Sans",
+      "mono": "IBM Plex Mono"
+    },
+    "scale": {
+      "h1": "text-4xl tracking-tighter leading-none font-bold",
+      "h2": "text-2xl tracking-tight leading-none font-bold",
+      "h3": "text-xl tracking-tight leading-tight font-semibold",
+      "h4": "text-lg tracking-tight leading-tight font-semibold",
+      "body": "text-sm leading-relaxed",
+      "overline": "text-xs tracking-[0.2em] uppercase font-bold text-gray-500",
+      "data": "text-sm font-mono tracking-tight"
+    }
+  },
+  "layout_and_spacing": {
+    "strategy": "MODE B: THE 'CONTROL ROOM' GRID",
+    "spacing_system": "Use generous container padding (p-6, p-8) but dense widget internal grids (gap-4, gap-6).",
+    "surface_treatment": "GRID BORDERS (The 'Technical' Look). Expose the skeleton. Use border-collapse style layouts with 1px solid borders (border-gray-200). Avoid soft shadows entirely. Prioritize flat backgrounds.",
+    "border_radius": "rounded-none or rounded-sm (max 4px). No pill shapes.",
+    "alignment": "Strict left-alignment for dense data, OCR inputs, and tables."
+  },
+  "components": {
+    "buttons": "Flat, sharp edges. Primary: bg-black text-white hover:bg-gray-800. Secondary: border border-gray-300 bg-white text-black hover:bg-gray-50. Tamper/Reject: bg-red-600 text-white hover:bg-red-700.",
+    "inputs": "Shadcn components customized to have sharp corners (rounded-none), 1px solid border (border-gray-300), focus:ring-2 focus:ring-black focus:border-black. Values should be in IBM Plex Sans or Mono.",
+    "cards_widgets": "Flat background, 1px border (border-gray-200). Grid Items: border-r border-b for technical grid feel.",
+    "tables": "Dense. Shadcn table. Explicit hover states on rows (hover:bg-gray-50). High-contrast header (bg-gray-100 font-bold uppercase text-xs tracking-wider).",
+    "badges": "Sharp corners (rounded-sm). High contrast. e.g., bg-red-100 text-red-800 border border-red-200 for tamper alerts.",
+    "modals_dialogs": "Solid white background, 1px border, backdrop-blur-sm bg-black/40 overlay. No glassmorphism on the modal body."
+  },
+  "motion_and_interactions": {
+    "hover_states": "Must explicitly set text color on hover. Subtle bg color shifts (hover:bg-gray-100 text-black).",
+    "focus_states": "High contrast focus rings (focus:ring-2 focus:ring-black focus:outline-none).",
+    "transitions": "Fast, precise. transition-colors duration-150 ease-in-out."
+  },
+  "media_and_assets": {
+    "icons_library": "@phosphor-icons/react (Use Duotone or Regular weight for a technical/dense feel)",
+    "images": [
+      {
+        "url": "https://images.unsplash.com/photo-1767175620484-1ed37931a0d1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTF8MHwxfHNlYXJjaHw0fHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMG5ldXRyYWwlMjBiYWNrZ3JvdW5kfGVufDB8fHx8MTc3NjUwNTQxNXww&ixlib=rb-4.1.0&q=85",
+        "category": "user_avatar_1",
+        "description": "Avatar for human-in-the-loop reviewer."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1767175473698-859bc73e8e64?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTF8MHwxfHNlYXJjaHwzfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMG5ldXRyYWwlMjBiYWNrZ3JvdW5kfGVufDB8fHx8MTc3NjUwNTQxNXww&ixlib=rb-4.1.0&q=85",
+        "category": "user_avatar_2",
+        "description": "Avatar for verified individual."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1576153880609-b3c4d27eeb09?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2Mzl8MHwxfHNlYXJjaHwyfHxpZCUyMGNhcmQlMjBtb2NrdXAlMjBiaW9tZXRyaWN8ZW58MHx8fHwxNzc2NTA1NDQyfDA&ixlib=rb-4.1.0&q=85",
+        "category": "document_mockup",
+        "description": "Mockup image for identity document review interface."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1773939005525-4b334dd74a2f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2Mzl8MHwxfHNlYXJjaHwxfHxtaW5pbWFsaXN0JTIwYWJzdHJhY3QlMjBncmlkJTIwYmFja2dyb3VuZCUyMHdoaXRlfGVufDB8fHx8MTc3NjUwNTQzMHww&ixlib=rb-4.1.0&q=85",
+        "category": "login_background",
+        "description": "Minimalist grid pattern for login/authentication screen background."
+      }
+    ]
+  },
+  "specific_page_guidelines": {
+    "ocr_review_panel": "Split screen layout (lg:grid-cols-2). Left side: Sticky document image container with pan/zoom capability (use 'react-zoom-pan-pinch'). Right side: Extracted data fields. Each field must highlight confidence scores. High confidence = neutral text. Low confidence = Warning Yellow highlight/badge. Tamper = Signal Red border/text.",
+    "dashboard_home": "Bento Grid (Control Room style). Top row: 4 stat cards (Total Scans, Pending Review, Tamper Alerts, Approval Rate). Below: Real-time verification feed (Table) + Audit Log Activity timeline (List).",
+    "tamper_alerts": "Use stark Signal Red (#E63946) sparingly but with maximum contrast. A tamper alert should be impossible to miss. Text must be white on red, or red on white with a thick border."
+  },
+  "instructions_to_main_agent": {
+    "testing": "CRITICAL: All interactive and key informational elements MUST include a 'data-testid' attribute (kebab-case, role-based) to facilitate robust automated testing. Example: data-testid='approve-document-button'.",
+    "file_extensions": "Use .js extensions for React components, not .tsx. You are working in a JavaScript environment.",
+    "components": "Do not build complex components (tables, dialogs, inputs) from scratch. Use pure HTML + Tailwind for structural layouts, but rely on Shadcn for interactive logic (heavily customizing Shadcn with the guidelines above: rounded-none, 1px borders, high contrast).",
+    "dependencies_to_install": [
+      "yarn add @phosphor-icons/react",
+      "yarn add react-zoom-pan-pinch",
+      "yarn add recharts",
+      "npx shadcn-ui@latest add table badge card dialog input label button separator"
+    ]
+  }
+}
